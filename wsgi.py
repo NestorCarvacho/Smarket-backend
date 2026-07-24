@@ -1,25 +1,51 @@
-"""Punto de entrada WSGI para PythonAnywhere.
+"""Punto de entrada WSGI para PythonAnywhere (uWSGI).
 
-PythonAnywhere (plan gratuito incluido) sirve apps via WSGI.
-FastAPI es ASGI, asi que lo adaptamos con a2wsgi.
+FastAPI es ASGI; lo adaptamos con a2wsgi. Incluye un /health sincrono
+para diagnosticar si el hang viene del adaptador ASGI.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
+PROJECT_HOME = Path("/home/nestorcarvacho/Smarket-backend")
 
-PROJECT_HOME = Path(__file__).resolve().parent
-
+# uWSGI a veces arranca en /home/usuario; forzar cwd del proyecto.
+os.chdir(PROJECT_HOME)
 if str(PROJECT_HOME) not in sys.path:
     sys.path.insert(0, str(PROJECT_HOME))
 
-# Cargar .env ANTES de importar la app (pydantic-settings cachea Settings).
+from dotenv import load_dotenv
+
 load_dotenv(PROJECT_HOME / ".env")
 
-from a2wsgi import ASGIMiddleware  # noqa: E402
-from app.main import app  # noqa: E402
+# Si Settings se cacheo antes, limpiar.
+try:
+    from app.core.config import get_settings
 
-application = ASGIMiddleware(app)
+    get_settings.cache_clear()
+except Exception:
+    pass
+
+from a2wsgi import ASGIMiddleware
+from app.main import app as fastapi_app
+
+_asgi_application = ASGIMiddleware(fastapi_app)
+
+
+def application(environ, start_response):
+    """WSGI callable con bypass sincrono de /health."""
+    path = environ.get("PATH_INFO", "")
+    if path == "/health" or path == "/health/":
+        body = b'{"status":"ok"}'
+        start_response(
+            "200 OK",
+            [
+                ("Content-Type", "application/json"),
+                ("Content-Length", str(len(body))),
+            ],
+        )
+        return [body]
+    return _asgi_application(environ, start_response)
