@@ -11,3 +11,4 @@ env/
 *.sqlite3
 .vscode/
 .idea/
+*.log

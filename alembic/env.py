@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.db.base import Base
-from app.models import ListItem, Purchase, ShoppingList, User  # noqa: F401  (registran metadata)
+from app.models import ListItem, ListMember, Purchase, ShoppingList, User  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)

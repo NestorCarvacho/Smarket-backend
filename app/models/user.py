@@ -17,3 +17,6 @@ class User(Base):
     shopping_lists: Mapped[list["ShoppingList"]] = relationship(
         back_populates="owner", cascade="all, delete-orphan"
     )
+    memberships: Mapped[list["ListMember"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )

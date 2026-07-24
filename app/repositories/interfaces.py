@@ -9,6 +9,7 @@ un mock en tests, etc.) sin tocar la logica de negocio.
 from abc import ABC, abstractmethod
 
 from app.models.list_item import ListItem
+from app.models.list_member import ListMember
 from app.models.purchase import Purchase
 from app.models.shopping_list import ShoppingList
 from app.models.user import User
@@ -30,13 +31,28 @@ class IShoppingListRepository(ABC):
     async def get_by_id(self, list_id: int) -> ShoppingList | None: ...
 
     @abstractmethod
-    async def list_by_user(self, user_id: int) -> list[ShoppingList]: ...
+    async def get_by_share_token(self, share_token: str) -> ShoppingList | None: ...
+
+    @abstractmethod
+    async def list_accessible_by_user(self, user_id: int) -> list[ShoppingList]: ...
 
     @abstractmethod
     async def create(self, user_id: int, name: str) -> ShoppingList: ...
 
     @abstractmethod
+    async def save(self, shopping_list: ShoppingList) -> ShoppingList: ...
+
+    @abstractmethod
     async def delete(self, shopping_list: ShoppingList) -> None: ...
+
+    @abstractmethod
+    async def add_member(self, list_id: int, user_id: int) -> ListMember: ...
+
+    @abstractmethod
+    async def remove_member(self, list_id: int, user_id: int) -> None: ...
+
+    @abstractmethod
+    async def is_member(self, list_id: int, user_id: int) -> bool: ...
 
 
 class IListItemRepository(ABC):

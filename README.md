@@ -31,10 +31,22 @@ Un `ShoppingList` tiene varios `ListItem` (producto + cantidad pedida). Cada `Li
 
 ## Requisitos previos
 
-- Python 3.11+
-- Docker Desktop (para levantar MySQL fácilmente) — o una instancia de MySQL ya corriendo
+- Python 3.10+
+- MySQL (en produccion: el de PythonAnywhere) o SQLite para desarrollo local
 
-## Puesta en marcha (Windows / PowerShell)
+## Deploy en la nube (PythonAnywhere, sin Docker)
+
+Ver la guia completa: [`DEPLOY_PYTHONANYWHERE.md`](./DEPLOY_PYTHONANYWHERE.md).
+
+Resumen: subis el repo, creas un virtualenv, configuras MySQL + `.env`, corres `alembic upgrade head`, y apuntas la Web App al `wsgi.py` (adapta FastAPI ASGI → WSGI con `a2wsgi`).
+
+La API queda en `https://TU_USUARIO.pythonanywhere.com` y el frontend usa:
+
+```env
+EXPO_PUBLIC_API_URL=https://TU_USUARIO.pythonanywhere.com/api/v1
+```
+
+## Puesta en marcha local (Windows / PowerShell)
 
 ```powershell
 # 1. Crear y activar entorno virtual

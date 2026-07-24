@@ -77,3 +77,80 @@ async def test_cannot_access_another_users_list(client):
 
     forbidden_resp = await client.get(f"/api/v1/lists/{list_id}", headers=headers_b)
     assert forbidden_resp.status_code == 403
+
+
+async def test_list_summary_includes_total_spent(client):
+    headers = await _register_and_get_headers(client, email="totals@example.com")
+
+    list_resp = await client.post("/api/v1/lists", json={"name": "Con totales"}, headers=headers)
+    list_id = list_resp.json()["id"]
+
+    item_resp = await client.post(
+        f"/api/v1/lists/{list_id}/items",
+        json={"product_name": "Pan", "quantity_requested": 2, "unit": "unidad"},
+        headers=headers,
+    )
+    item_id = item_resp.json()["id"]
+
+    await client.post(
+        f"/api/v1/lists/{list_id}/items/{item_id}/purchases",
+        json={
+            "brand": "Bimbo",
+            "purchased_name": "Pan lactal",
+            "price": 1500,
+            "quantity_purchased": 2,
+        },
+        headers=headers,
+    )
+
+    lists_resp = await client.get("/api/v1/lists", headers=headers)
+    assert lists_resp.status_code == 200
+    summary = next(item for item in lists_resp.json() if item["id"] == list_id)
+    assert summary["total_spent"] == 3000.0
+    assert summary["item_count"] == 1
+    assert summary["completed_count"] == 1
+    assert summary["is_owner"] is True
+
+
+async def test_share_and_join_list(client):
+    headers_owner = await _register_and_get_headers(client, email="owner@example.com")
+    headers_member = await _register_and_get_headers(client, email="member@example.com")
+
+    list_resp = await client.post(
+        "/api/v1/lists", json={"name": "Lista compartida"}, headers=headers_owner
+    )
+    list_id = list_resp.json()["id"]
+
+    share_resp = await client.post(f"/api/v1/lists/{list_id}/share", headers=headers_owner)
+    assert share_resp.status_code == 200
+    share_token = share_resp.json()["share_token"]
+    assert share_resp.json()["share_url"].endswith(share_token)
+
+    join_resp = await client.post(
+        "/api/v1/lists/join", json={"share_token": share_token}, headers=headers_member
+    )
+    assert join_resp.status_code == 200
+    assert join_resp.json()["id"] == list_id
+    assert join_resp.json()["is_owner"] is False
+
+    member_lists = await client.get("/api/v1/lists", headers=headers_member)
+    assert any(item["id"] == list_id for item in member_lists.json())
+
+    detail_resp = await client.get(f"/api/v1/lists/{list_id}", headers=headers_member)
+    assert detail_resp.status_code == 200
+
+    item_resp = await client.post(
+        f"/api/v1/lists/{list_id}/items",
+        json={"product_name": "Huevos", "quantity_requested": 12, "unit": "unidad"},
+        headers=headers_member,
+    )
+    assert item_resp.status_code == 201
+
+    delete_forbidden = await client.delete(f"/api/v1/lists/{list_id}", headers=headers_member)
+    assert delete_forbidden.status_code == 403
+
+    leave_resp = await client.post(f"/api/v1/lists/{list_id}/leave", headers=headers_member)
+    assert leave_resp.status_code == 204
+
+    after_leave = await client.get(f"/api/v1/lists/{list_id}", headers=headers_member)
+    assert after_leave.status_code == 403
