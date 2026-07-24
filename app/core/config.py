@@ -1,6 +1,9 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.db.url import to_async_database_url, to_sync_database_url
 
 
 class Settings(BaseSettings):
@@ -11,8 +14,8 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Grocery List API"
     API_V1_PREFIX: str = "/api/v1"
 
-    DATABASE_URL: str = "mysql+aiomysql://grocery_user:grocery_password@localhost:3306/grocery_db"
-    DATABASE_URL_SYNC: str = "mysql+pymysql://grocery_user:grocery_password@localhost:3306/grocery_db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./smarket_dev.db"
+    DATABASE_URL_SYNC: str = "sqlite:///./smarket_dev.db"
 
     JWT_SECRET_KEY: str = "change-this-secret-in-production"
     JWT_ALGORITHM: str = "HS256"
@@ -30,6 +33,16 @@ class Settings(BaseSettings):
 
     MAX_FAILED_LOGIN_ATTEMPTS: int = 3
     RESET_CODE_EXPIRE_MINUTES: int = 30
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalize_async_url(cls, value: str) -> str:
+        return to_async_database_url(str(value))
+
+    @field_validator("DATABASE_URL_SYNC", mode="before")
+    @classmethod
+    def normalize_sync_url(cls, value: str) -> str:
+        return to_sync_database_url(str(value))
 
     @property
     def cors_origins_list(self) -> list[str]:
