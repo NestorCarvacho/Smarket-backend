@@ -8,7 +8,8 @@ from app.db.base import Base
 from app.models import ListItem, ListMember, Purchase, ShoppingList, User  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC)
+# ConfigParser interpreta "%" como interpolacion; escapamos "%%" para URLs con %24 (PythonAnywhere).
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_SYNC.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
