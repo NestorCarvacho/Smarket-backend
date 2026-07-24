@@ -56,16 +56,11 @@ async def test_lock_after_three_failures_and_unlock_via_reset(client):
     )
     assert even_correct.status_code == 403
 
-    forgot = await client.post("/api/v1/auth/forgot-password", json={"email": email})
-    assert forgot.status_code == 200
-    reset_code = forgot.json()["reset_code"]
-    assert reset_code
-
-    reset = await client.post(
-        "/api/v1/auth/reset-password",
-        json={"email": email, "reset_code": reset_code, "new_password": "newsecret99"},
+    recover = await client.post(
+        "/api/v1/auth/recover-password",
+        json={"email": email, "new_password": "newsecret99"},
     )
-    assert reset.status_code == 200
+    assert recover.status_code == 200
 
     login_ok = await client.post(
         "/api/v1/auth/login", json={"email": email, "password": "newsecret99"}

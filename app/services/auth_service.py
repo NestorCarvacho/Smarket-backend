@@ -118,3 +118,22 @@ class AuthService:
         user.reset_code_hash = None
         user.reset_code_expires_at = None
         await self._user_repository.save(user)
+
+    async def recover_password(self, email: str, new_password: str) -> None:
+        """Cambia la contraseña sin codigo visible (modo sin SMTP)."""
+        if not settings.EXPOSE_RESET_CODES:
+            raise UnauthorizedError(
+                "La recuperacion directa esta deshabilitada. Configura el envio de emails."
+            )
+
+        user = await self._user_repository.get_by_email(email)
+        if user is None:
+            # Misma respuesta opaca para no filtrar si el email existe.
+            raise UnauthorizedError("No se pudo restablecer la contraseña para ese email")
+
+        user.hashed_password = hash_password(new_password)
+        user.is_locked = False
+        user.failed_login_attempts = 0
+        user.reset_code_hash = None
+        user.reset_code_expires_at = None
+        await self._user_repository.save(user)

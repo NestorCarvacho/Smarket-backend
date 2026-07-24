@@ -7,6 +7,7 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
     MessageResponse,
+    RecoverPasswordRequest,
     RefreshRequest,
     ResetPasswordRequest,
     TokenResponse,
@@ -50,4 +51,12 @@ async def reset_password(
     payload: ResetPasswordRequest, auth_service: AuthServiceDep
 ) -> MessageResponse:
     await auth_service.reset_password(payload.email, payload.reset_code, payload.new_password)
+    return MessageResponse(message="Contraseña actualizada. Ya podes iniciar sesion.")
+
+
+@router.post("/recover-password", response_model=MessageResponse)
+async def recover_password(
+    payload: RecoverPasswordRequest, auth_service: AuthServiceDep
+) -> MessageResponse:
+    await auth_service.recover_password(payload.email, payload.new_password)
     return MessageResponse(message="Contraseña actualizada. Ya podes iniciar sesion.")
