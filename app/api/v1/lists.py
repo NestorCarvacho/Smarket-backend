@@ -8,9 +8,11 @@ from app.schemas.shopping_list import (
     ShareLinkRead,
     ShoppingListCreate,
     ShoppingListDetailRead,
+    ShoppingListDuplicate,
     ShoppingListRead,
+    ShoppingListUpdate,
 )
-from app.services.shopping_list_service import ShoppingListService
+from app.services.shopping_list_service import ShoppingListService, compute_list_summary
 
 router = APIRouter()
 
@@ -28,16 +30,8 @@ async def get_my_lists(
 async def create_list(
     payload: ShoppingListCreate, current_user: CurrentUser, service: ShoppingListServiceDep
 ) -> ShoppingListRead:
-    shopping_list = await service.create_list(current_user.id, payload.name)
-    return ShoppingListRead(
-        id=shopping_list.id,
-        name=shopping_list.name,
-        created_at=shopping_list.created_at,
-        is_owner=True,
-        item_count=0,
-        completed_count=0,
-        total_spent=0.0,
-    )
+    shopping_list = await service.create_list(current_user.id, payload.name, payload.items)
+    return compute_list_summary(shopping_list, current_user.id)
 
 
 @router.post("/join", response_model=ShoppingListDetailRead, status_code=status.HTTP_200_OK)
@@ -69,6 +63,32 @@ async def get_list_detail(
         share_token=shopping_list.share_token if is_owner else None,
         items=shopping_list.items,
     )
+
+
+@router.patch("/{list_id}", response_model=ShoppingListRead)
+async def rename_list(
+    list_id: int,
+    payload: ShoppingListUpdate,
+    current_user: CurrentUser,
+    service: ShoppingListServiceDep,
+) -> ShoppingListRead:
+    shopping_list = await service.rename_list(list_id, current_user.id, payload.name)
+    return compute_list_summary(shopping_list, current_user.id)
+
+
+@router.post(
+    "/{list_id}/duplicate",
+    response_model=ShoppingListRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def duplicate_list(
+    list_id: int,
+    payload: ShoppingListDuplicate,
+    current_user: CurrentUser,
+    service: ShoppingListServiceDep,
+) -> ShoppingListRead:
+    shopping_list = await service.duplicate_list(list_id, current_user.id, payload.name)
+    return compute_list_summary(shopping_list, current_user.id)
 
 
 @router.post("/{list_id}/share", response_model=ShareLinkRead)

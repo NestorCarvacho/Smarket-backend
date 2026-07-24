@@ -5,8 +5,25 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 from app.schemas.list_item import ListItemRead
 
 
+class ShoppingListItemSeed(BaseModel):
+    product_name: str = Field(min_length=1, max_length=120)
+    quantity_requested: float = Field(gt=0)
+    unit: str | None = Field(default=None, max_length=30)
+
+
 class ShoppingListCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    items: list[ShoppingListItemSeed] = Field(default_factory=list)
+
+
+class ShoppingListUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class ShoppingListDuplicate(BaseModel):
+    """Copia limpia: productos y cantidades, sin compras ni estados completados."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=120)
 
 
 class ShoppingListRead(BaseModel):

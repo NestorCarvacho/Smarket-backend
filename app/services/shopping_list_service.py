@@ -3,8 +3,8 @@ import secrets
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.models.list_item import ListItemStatus
 from app.models.shopping_list import ShoppingList
-from app.repositories.interfaces import IShoppingListRepository
-from app.schemas.shopping_list import ShoppingListRead
+from app.repositories.interfaces import IListItemRepository, IShoppingListRepository
+from app.schemas.shopping_list import ShoppingListItemSeed, ShoppingListRead
 
 
 def compute_list_summary(shopping_list: ShoppingList, user_id: int) -> ShoppingListRead:
@@ -25,11 +25,46 @@ def compute_list_summary(shopping_list: ShoppingList, user_id: int) -> ShoppingL
 
 
 class ShoppingListService:
-    def __init__(self, list_repository: IShoppingListRepository) -> None:
+    def __init__(
+        self, list_repository: IShoppingListRepository, item_repository: IListItemRepository
+    ) -> None:
         self._list_repository = list_repository
+        self._item_repository = item_repository
 
-    async def create_list(self, user_id: int, name: str) -> ShoppingList:
-        return await self._list_repository.create(user_id, name)
+    async def create_list(
+        self, user_id: int, name: str, items: list[ShoppingListItemSeed] | None = None
+    ) -> ShoppingList:
+        shopping_list = await self._list_repository.create(user_id, name)
+        for seed in items or []:
+            await self._item_repository.create(
+                shopping_list.id,
+                seed.product_name,
+                seed.quantity_requested,
+                seed.unit,
+            )
+        return await self.get_accessible_list(shopping_list.id, user_id)
+
+    async def rename_list(self, list_id: int, user_id: int, name: str) -> ShoppingList:
+        shopping_list = await self.require_owner(list_id, user_id)
+        shopping_list.name = name
+        await self._list_repository.save(shopping_list)
+        return await self.get_accessible_list(list_id, user_id)
+
+    async def duplicate_list(
+        self, list_id: int, user_id: int, name: str | None = None
+    ) -> ShoppingList:
+        """Crea una lista nueva del usuario con los mismos productos, sin compras."""
+        source = await self.get_accessible_list(list_id, user_id)
+        new_name = (name or f"{source.name} (copia)").strip()
+        new_list = await self._list_repository.create(user_id, new_name)
+        for item in source.items or []:
+            await self._item_repository.create(
+                new_list.id,
+                item.product_name,
+                float(item.quantity_requested),
+                item.unit,
+            )
+        return await self.get_accessible_list(new_list.id, user_id)
 
     async def list_for_user(self, user_id: int) -> list[ShoppingListRead]:
         lists = await self._list_repository.list_accessible_by_user(user_id)

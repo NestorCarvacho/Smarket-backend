@@ -19,7 +19,12 @@ class SqlAlchemyShoppingListRepository(IShoppingListRepository):
         )
 
     async def get_by_id(self, list_id: int) -> ShoppingList | None:
-        stmt = select(ShoppingList).where(ShoppingList.id == list_id).options(*self._detail_options())
+        stmt = (
+            select(ShoppingList)
+            .where(ShoppingList.id == list_id)
+            .options(*self._detail_options())
+            .execution_options(populate_existing=True)
+        )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 

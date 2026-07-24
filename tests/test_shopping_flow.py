@@ -154,3 +154,58 @@ async def test_share_and_join_list(client):
 
     after_leave = await client.get(f"/api/v1/lists/{list_id}", headers=headers_member)
     assert after_leave.status_code == 403
+
+
+async def test_rename_and_duplicate_list_clean_copy(client):
+    headers = await _register_and_get_headers(client, email="dup@example.com")
+
+    list_resp = await client.post(
+        "/api/v1/lists",
+        json={
+            "name": "Supermercado",
+            "items": [
+                {"product_name": "Leche", "quantity_requested": 2, "unit": "unidad"},
+                {"product_name": "Pan", "quantity_requested": 1, "unit": "unidad"},
+            ],
+        },
+        headers=headers,
+    )
+    assert list_resp.status_code == 201
+    assert list_resp.json()["item_count"] == 2
+    list_id = list_resp.json()["id"]
+
+    item_id = (
+        await client.get(f"/api/v1/lists/{list_id}", headers=headers)
+    ).json()["items"][0]["id"]
+    await client.post(
+        f"/api/v1/lists/{list_id}/items/{item_id}/purchases",
+        json={
+            "brand": "La Serenisima",
+            "purchased_name": "Leche",
+            "price": 1000,
+            "quantity_purchased": 2,
+        },
+        headers=headers,
+    )
+
+    rename_resp = await client.patch(
+        f"/api/v1/lists/{list_id}", json={"name": "Super mensual"}, headers=headers
+    )
+    assert rename_resp.status_code == 200
+    assert rename_resp.json()["name"] == "Super mensual"
+
+    dup_resp = await client.post(
+        f"/api/v1/lists/{list_id}/duplicate",
+        json={"name": "Super abril"},
+        headers=headers,
+    )
+    assert dup_resp.status_code == 201
+    assert dup_resp.json()["name"] == "Super abril"
+    assert dup_resp.json()["item_count"] == 2
+    assert dup_resp.json()["completed_count"] == 0
+    assert dup_resp.json()["total_spent"] == 0.0
+
+    detail = await client.get(f"/api/v1/lists/{dup_resp.json()['id']}", headers=headers)
+    for item in detail.json()["items"]:
+        assert item["status"] == "pending"
+        assert item["purchases"] == []

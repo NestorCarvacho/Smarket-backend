@@ -34,7 +34,10 @@ def get_auth_service(session: DbSession) -> AuthService:
 
 
 def get_shopping_list_service(session: DbSession) -> ShoppingListService:
-    return ShoppingListService(SqlAlchemyShoppingListRepository(session))
+    return ShoppingListService(
+        SqlAlchemyShoppingListRepository(session),
+        SqlAlchemyListItemRepository(session),
+    )
 
 
 def get_list_item_service(
