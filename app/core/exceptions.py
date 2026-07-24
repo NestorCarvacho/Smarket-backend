@@ -25,3 +25,7 @@ class UnauthorizedError(DomainError):
 
 class ForbiddenError(DomainError):
     pass
+
+
+class AccountLockedError(DomainError):
+    """Cuenta bloqueada por intentos fallidos de login."""

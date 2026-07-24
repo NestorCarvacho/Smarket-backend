@@ -21,6 +21,16 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: str = "*"
 
+    # URL publica del backend (links de compartir / join desde WhatsApp)
+    PUBLIC_BASE_URL: str = "https://smarket-backend-vf3c.onrender.com"
+
+    # Sin proveedor de email: devolver el codigo de reset en la respuesta de forgot-password.
+    # Poner en false cuando configures envio de emails.
+    EXPOSE_RESET_CODES: bool = True
+
+    MAX_FAILED_LOGIN_ATTEMPTS: int = 3
+    RESET_CODE_EXPIRE_MINUTES: int = 30
+
     @property
     def cors_origins_list(self) -> list[str]:
         if self.CORS_ORIGINS == "*":

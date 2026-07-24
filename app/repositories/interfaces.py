@@ -25,6 +25,9 @@ class IUserRepository(ABC):
     @abstractmethod
     async def create(self, email: str, hashed_password: str) -> User: ...
 
+    @abstractmethod
+    async def save(self, user: User) -> User: ...
+
 
 class IShoppingListRepository(ABC):
     @abstractmethod

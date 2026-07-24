@@ -21,3 +21,8 @@ class SqlAlchemyUserRepository(IUserRepository):
         self._session.add(user)
         await self._session.flush()
         return user
+
+    async def save(self, user: User) -> User:
+        self._session.add(user)
+        await self._session.flush()
+        return user

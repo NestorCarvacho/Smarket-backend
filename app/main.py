@@ -1,22 +1,32 @@
 from contextlib import asynccontextmanager
+from html import escape
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
+from app.api.deps import get_shopping_list_service
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, UnauthorizedError
+from app.core.exceptions import (
+    AccountLockedError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    UnauthorizedError,
+)
 from app.db.base import Base
+from app.db.migrate import ensure_schema
 from app.db.session import engine
 from app.models import ListItem, ListMember, Purchase, ShoppingList, User  # noqa: F401
+from app.services.shopping_list_service import ShoppingListService
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # En SQLite (Render free / local) crea tablas si no existen.
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await ensure_schema(conn)
     yield
 
 
@@ -51,9 +61,72 @@ async def forbidden_handler(request: Request, exc: ForbiddenError) -> JSONRespon
     return JSONResponse(status_code=403, content={"detail": str(exc)})
 
 
+@app.exception_handler(AccountLockedError)
+async def account_locked_handler(request: Request, exc: AccountLockedError) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": str(exc), "code": "account_locked"})
+
+
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/health", tags=["health"])
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/join/{share_token}", response_class=HTMLResponse, tags=["join"])
+async def join_landing(
+    share_token: str,
+    service: ShoppingListService = Depends(get_shopping_list_service),
+) -> HTMLResponse:
+    """Pagina HTTPS para WhatsApp: abre la app o muestra el codigo para unirse."""
+    try:
+        shopping_list = await service.get_invite_preview(share_token)
+        list_name = escape(shopping_list.name)
+        item_count = len(shopping_list.items or [])
+        valid = True
+    except NotFoundError:
+        list_name = "Invitacion invalida"
+        item_count = 0
+        valid = False
+
+    token = escape(share_token)
+    deep_link = f"smarket://join/{token}"
+    intent_link = (
+        f"intent://join/{token}#Intent;scheme=smarket;package=com.nestorcarvacho.smarket;"
+        f"S.browser_fallback_url={settings.PUBLIC_BASE_URL.rstrip('/')}/join/{token};end"
+    )
+
+    body = f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Smarket · Unirse a lista</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; background:#0b0b0f; color:#fff; margin:0; padding:24px; }}
+    .card {{ max-width:420px; margin:40px auto; background:#17171c; border-radius:20px; padding:28px; }}
+    h1 {{ font-size:28px; margin:0 0 8px; }}
+    p {{ color:#b8b8c0; line-height:1.45; }}
+    .code {{ font-size:22px; letter-spacing:1px; background:#22222a; padding:14px; border-radius:12px; word-break:break-all; }}
+    a.btn {{ display:block; text-align:center; margin-top:18px; background:#007AFF; color:#fff; text-decoration:none; padding:14px 16px; border-radius:14px; font-weight:700; }}
+    a.secondary {{ display:block; text-align:center; margin-top:12px; color:#8ec5ff; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Smarket</h1>
+    {"<p>Te invitaron a la lista <strong>" + list_name + "</strong> (" + str(item_count) + " productos).</p>" if valid else "<p>Este link de invitacion no es valido o expiro.</p>"}
+    {"<p>Toca el boton para abrir la app. Si no tenes Smarket instalada, copia el codigo y usa <em>Unirse</em> en Mis listas.</p>" if valid else ""}
+    {"<div class='code'>" + token + "</div>" if valid else ""}
+    {"<a class='btn' href='" + deep_link + "'>Abrir en Smarket</a>" if valid else ""}
+    {"<a class='secondary' href='" + intent_link + "'>Abrir con Android</a>" if valid else ""}
+  </div>
+  <script>
+    {"setTimeout(function(){ window.location.href = '" + deep_link + "'; }, 400);" if valid else ""}
+  </script>
+</body>
+</html>
+"""
+    return HTMLResponse(content=body)

@@ -75,3 +75,11 @@ class ShareLinkRead(BaseModel):
 
 class JoinListRequest(BaseModel):
     share_token: str = Field(min_length=8, max_length=64)
+
+
+class JoinInvitePreview(BaseModel):
+    name: str
+    share_token: str
+    item_count: int
+    deep_link: str
+    web_url: str

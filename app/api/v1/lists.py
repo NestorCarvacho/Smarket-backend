@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.api.deps import CurrentUser, get_shopping_list_service
 from app.schemas.shopping_list import (
+    JoinInvitePreview,
     JoinListRequest,
     ShareLinkRead,
     ShoppingListCreate,
@@ -13,6 +14,7 @@ from app.schemas.shopping_list import (
     ShoppingListUpdate,
 )
 from app.services.shopping_list_service import ShoppingListService, compute_list_summary
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -46,6 +48,20 @@ async def join_list(
         is_owner=False,
         share_token=None,
         items=shopping_list.items,
+    )
+
+
+@router.get("/invite/{share_token}", response_model=JoinInvitePreview)
+async def preview_invite(share_token: str, service: ShoppingListServiceDep) -> JoinInvitePreview:
+    shopping_list = await service.get_invite_preview(share_token)
+    token = shopping_list.share_token or share_token
+    base = settings.PUBLIC_BASE_URL.rstrip("/")
+    return JoinInvitePreview(
+        name=shopping_list.name,
+        share_token=token,
+        item_count=len(shopping_list.items or []),
+        deep_link=f"smarket://join/{token}",
+        web_url=f"{base}/join/{token}",
     )
 
 

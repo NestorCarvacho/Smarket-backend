@@ -6,6 +6,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.core.exceptions import DomainError
 from app.db.base import Base
 from app.db.session import get_db_session
 from app.main import app
@@ -34,10 +35,14 @@ async def client(async_engine) -> AsyncGenerator[AsyncClient, None]:
         async with session_factory() as session:
             try:
                 yield session
+            except DomainError:
                 await session.commit()
+                raise
             except Exception:
                 await session.rollback()
                 raise
+            else:
+                await session.commit()
 
     app.dependency_overrides[get_db_session] = _override_get_db_session
 

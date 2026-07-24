@@ -99,7 +99,9 @@ class ShoppingListService:
         if not shopping_list.share_token:
             shopping_list.share_token = secrets.token_urlsafe(16)
             await self._list_repository.save(shopping_list)
-        share_url = f"smarket://join/{shopping_list.share_token}"
+        from app.core.config import settings
+
+        share_url = f"{settings.PUBLIC_BASE_URL.rstrip('/')}/join/{shopping_list.share_token}"
         return shopping_list.share_token, share_url
 
     async def revoke_share_link(self, list_id: int, user_id: int) -> None:
@@ -127,6 +129,12 @@ class ShoppingListService:
         if not await self._list_repository.is_member(list_id, user_id):
             raise ForbiddenError("No sos miembro de esta lista")
         await self._list_repository.remove_member(list_id, user_id)
+
+    async def get_invite_preview(self, share_token: str) -> ShoppingList:
+        shopping_list = await self._list_repository.get_by_share_token(share_token.strip())
+        if shopping_list is None:
+            raise NotFoundError("Link de invitacion invalido o expirado")
+        return shopping_list
 
     async def _user_can_access(self, shopping_list: ShoppingList, user_id: int) -> bool:
         if shopping_list.user_id == user_id:
