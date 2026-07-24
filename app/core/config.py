@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.db.url import to_async_database_url, to_sync_database_url
@@ -24,11 +24,8 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: str = "*"
 
-    # URL publica del backend (links de compartir / join desde WhatsApp)
     PUBLIC_BASE_URL: str = "https://smarket-backend-vf3c.onrender.com"
 
-    # Sin proveedor de email: devolver el codigo de reset en la respuesta de forgot-password.
-    # Poner en false cuando configures envio de emails.
     EXPOSE_RESET_CODES: bool = True
 
     MAX_FAILED_LOGIN_ATTEMPTS: int = 3
@@ -43,6 +40,13 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_sync_url(cls, value: str) -> str:
         return to_sync_database_url(str(value))
+
+    @model_validator(mode="after")
+    def align_sync_with_async_postgres(self) -> "Settings":
+        if "postgresql" in self.DATABASE_URL and "sqlite" in self.DATABASE_URL_SYNC:
+            base = self.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+            self.DATABASE_URL_SYNC = to_sync_database_url(base)
+        return self
 
     @property
     def cors_origins_list(self) -> list[str]:
