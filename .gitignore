@@ -12,3 +12,13 @@ env/
 .vscode/
 .idea/
 *.log
+
+# Local AI / editor tooling
+.codex/
+.cursor/
+.gemini/
+.grok/
+.zed/
+.mcp.json
+opencode.json
+config/
