@@ -4,9 +4,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class PurchaseCreate(BaseModel):
-    brand: str = Field(min_length=1, max_length=120)
+    brand: str | None = Field(default=None, max_length=120)
     purchased_name: str = Field(min_length=1, max_length=120)
-    price: float = Field(gt=0)
+    price: float = Field(gt=0, description="Precio unitario")
     quantity_purchased: float = Field(gt=0)
 
 

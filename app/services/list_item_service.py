@@ -1,5 +1,5 @@
 from app.core.exceptions import ForbiddenError, NotFoundError
-from app.models.list_item import ListItem
+from app.models.list_item import ListItem, ListItemStatus
 from app.repositories.interfaces import IListItemRepository
 from app.services.shopping_list_service import ShoppingListService
 
@@ -50,6 +50,12 @@ class ListItemService:
             item.product_name = product_name
         if quantity_requested is not None:
             item.quantity_requested = quantity_requested
+            total_purchased = sum(float(p.quantity_purchased) for p in (item.purchases or []))
+            item.status = (
+                ListItemStatus.COMPLETED
+                if total_purchased >= float(item.quantity_requested)
+                else ListItemStatus.PENDING
+            )
         if unit is not None:
             item.unit = unit
 

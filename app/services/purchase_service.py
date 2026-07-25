@@ -27,7 +27,7 @@ class PurchaseService:
         list_id: int,
         item_id: int,
         user_id: int,
-        brand: str,
+        brand: str | None,
         purchased_name: str,
         price: float,
         quantity_purchased: float,
@@ -36,7 +36,7 @@ class PurchaseService:
 
         purchase = await self._purchase_repository.create(
             list_item_id=item.id,
-            brand=brand,
+            brand=(brand or "").strip(),
             purchased_name=purchased_name,
             price=price,
             quantity_purchased=quantity_purchased,

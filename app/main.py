@@ -92,9 +92,9 @@ async def join_landing(
 
     token = escape(share_token)
     deep_link = f"smarket://join/{token}"
+    # Intent nativo Android (mejor que custom scheme desde Chrome/WhatsApp WebView)
     intent_link = (
-        f"intent://join/{token}#Intent;scheme=smarket;package=com.nestorcarvacho.smarket;"
-        f"S.browser_fallback_url={settings.PUBLIC_BASE_URL.rstrip('/')}/join/{token};end"
+        f"intent://join/{token}#Intent;scheme=smarket;package=com.nestorcarvacho.smarket;end"
     )
 
     body = f"""
@@ -109,7 +109,7 @@ async def join_landing(
     .card {{ max-width:420px; margin:40px auto; background:#17171c; border-radius:20px; padding:28px; }}
     h1 {{ font-size:28px; margin:0 0 8px; }}
     p {{ color:#b8b8c0; line-height:1.45; }}
-    .code {{ font-size:22px; letter-spacing:1px; background:#22222a; padding:14px; border-radius:12px; word-break:break-all; }}
+    .code {{ font-size:22px; letter-spacing:1px; background:#22222a; padding:14px; border-radius:12px; word-break:break-all; user-select:all; }}
     a.btn {{ display:block; text-align:center; margin-top:18px; background:#007AFF; color:#fff; text-decoration:none; padding:14px 16px; border-radius:14px; font-weight:700; }}
     a.secondary {{ display:block; text-align:center; margin-top:12px; color:#8ec5ff; }}
   </style>
@@ -118,13 +118,13 @@ async def join_landing(
   <div class="card">
     <h1>Smarket</h1>
     {"<p>Te invitaron a la lista <strong>" + list_name + "</strong> (" + str(item_count) + " productos).</p>" if valid else "<p>Este link de invitacion no es valido o expiro.</p>"}
-    {"<p>Toca el boton para abrir la app. Si no tenes Smarket instalada, copia el codigo y usa <em>Unirse</em> en Mis listas.</p>" if valid else ""}
-    {"<div class='code'>" + token + "</div>" if valid else ""}
-    {"<a class='btn' href='" + deep_link + "'>Abrir en Smarket</a>" if valid else ""}
-    {"<a class='secondary' href='" + intent_link + "'>Abrir con Android</a>" if valid else ""}
+    {"<p>Toca <strong>Abrir en Smarket</strong>. Si no abre, copia el codigo y en la app usa Mis listas → icono de link.</p>" if valid else ""}
+    {"<div class='code' id='code'>" + token + "</div>" if valid else ""}
+    {"<a class='btn' id='openBtn' href='" + intent_link + "'>Abrir en Smarket</a>" if valid else ""}
+    {"<a class='secondary' href='" + deep_link + "'>Probar link directo</a>" if valid else ""}
   </div>
   <script>
-    {"setTimeout(function(){ window.location.href = '" + deep_link + "'; }, 400);" if valid else ""}
+    {"(function(){ var ua=navigator.userAgent||''; var android=/Android/i.test(ua); var intent='" + intent_link + "'; var deep='" + deep_link + "'; var btn=document.getElementById('openBtn'); if(btn){ btn.href = android ? intent : deep; } var target = android ? intent : deep; setTimeout(function(){ window.location.href = target; }, 300); })();" if valid else ""}
   </script>
 </body>
 </html>
